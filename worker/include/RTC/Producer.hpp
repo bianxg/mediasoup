@@ -21,7 +21,8 @@ using json = nlohmann::json;
 
 namespace RTC
 {
-	class Producer : public RTC::RtpStreamRecv::Listener, public RTC::KeyFrameRequestManager::Listener
+	class Producer : public RTC::RtpStreamRecv::Listener,
+	                 public RTC::KeyFrameRequestManager::Listener
 	{
 	public:
 		class Listener
@@ -39,6 +40,31 @@ namespace RTC
 			virtual void OnProducerSendRtcpPacket(RTC::Producer* producer, RTC::RTCP::Packet* packet) = 0;
 			virtual void OnProducerNeedWorstRemoteFractionLost(
 			  RTC::Producer* producer, uint32_t mappedSsrc, uint8_t& worstRemoteFractionLost) = 0;
+		};
+
+		// bxg copy and modified from worker\include\RTC\RtpStreamSend.hpp
+		struct StorageItem
+		{
+			// Cloned packet.
+			RTC::RtpPacket* packet{ nullptr };
+			// Memory to hold the cloned packet (with extra space for RTX encoding).
+			uint8_t store[RTC::MtuSize + 100];
+			// Time this packet should be send.
+			uint64_t sendAtMs{ 0u };
+			// Whether the packet has been already RTX encoded.
+			bool rtxEncoded{ false };
+		};
+
+		struct RtpStorage
+		{
+			std::vector<StorageItem*> buffer;
+			uint16_t bufferStartIdx{ 0u };
+			size_t bufferSize{ 0u };
+			std::vector<StorageItem> storage;
+			RtpStorage() : buffer(65536), storage(2000)
+			{
+			}
+			~RtpStorage();
 		};
 
 	private:
@@ -180,6 +206,16 @@ namespace RTC
 		bool videoOrientationDetected{ false };
 		struct VideoOrientation videoOrientation;
 		struct TraceEventTypes traceEventTypes;
+
+		// For buffer the received packets
+		RtpStorage* StorePacket(RTC::RtpPacket* packet, uint64_t nowMs);
+		void UpdateBufferStartIdx(RtpStorage* rtpStorage);
+		RTC::RtpPacket* TakePacket(RtpStorage* rtpStorage, uint64_t nowMs);
+		
+		std::map<uint32_t, RtpStorage*> mapSsrcRtpStorage;
+		bool dumpRTP{ true };
+		int countRTP{ 0 };
+		int totalRTP{ 0 };
 	};
 } // namespace RTC
 

@@ -1,5 +1,5 @@
 #define MS_CLASS "RTC::Producer"
-// #define MS_LOG_DEV_LEVEL 3
+#define MS_LOG_DEV_LEVEL 3
 
 #include "RTC/Producer.hpp"
 #include "DepLibUV.hpp"
@@ -17,6 +17,21 @@
 
 namespace RTC
 {
+	constexpr uint64_t SendBufferMs{ 0u };  // Send buffer time in MS
+
+	static void resetStorageItem(Producer::StorageItem* storageItem)
+	{
+		MS_TRACE();
+
+		MS_ASSERT(storageItem, "storageItem cannot be nullptr");
+
+		delete storageItem->packet;
+
+		storageItem->packet     = nullptr;
+		storageItem->sendAtMs = 0;
+		storageItem->rtxEncoded = false;
+	}
+
 	/* Instance methods. */
 
 	Producer::Producer(const std::string& id, RTC::Producer::Listener* listener, json& data)
@@ -322,6 +337,15 @@ namespace RTC
 
 		// Delete the KeyFrameRequestManager.
 		delete this->keyFrameRequestManager;
+
+		// Clear the RTP buffer.
+		for (auto& kv : this->mapSsrcRtpStorage)
+		{
+			auto* rtpStorage = kv.second;
+
+			delete rtpStorage;
+		}
+		this->mapSsrcRtpStorage.clear();
 	}
 
 	void Producer::FillJson(json& jsonObject) const
@@ -695,7 +719,74 @@ namespace RTC
 		// Post-process the packet.
 		PostProcessRtpPacket(packet);
 
-		this->listener->OnProducerRtpPacketReceived(this, packet);
+		// bxg: Buffer the packer
+		if (this->kind == RTC::Media::Kind::VIDEO)
+		{
+			countRTP++;
+			totalRTP++;
+			uint64_t nowMs         = DepLibUV::GetTimeMs();
+			RtpStorage* rtpStorage = StorePacket(packet, nowMs);
+			if (rtpStorage)
+			{
+				//if (dumpRTP)
+				//	packet->Dump();
+				RTC::RtpPacket* rtp = nullptr;
+				do
+				{
+					rtp = TakePacket(rtpStorage, nowMs);
+					if (rtp)
+					{
+						//if (dumpRTP)
+						//	rtp->Dump();
+						this->listener->OnProducerRtpPacketReceived(this, rtp);
+						MS_ASSERT(
+						  rtp->GetSsrc() == packet->GetSsrc() &&
+						    rtp->GetSequenceNumber() == packet->GetSequenceNumber() &&
+						    rtp->GetSize() == packet->GetSize(),
+						  "rtp ssrc and seq same");
+
+						if (memcmp(rtp->GetData(), packet->GetData(), packet->GetSize()) != 0)
+						{
+							for (size_t i = 0; i < packet->GetSize(); i++)
+							{
+								if ( *(rtp->GetData() + i) != *(packet->GetData() + i) )
+								{
+									MS_WARN_TAG(rtp, "RTP: %d %u %u", 
+									    (int)i , *(rtp->GetData() + i), *(packet->GetData() + i));
+								}
+							}
+							MS_WARN_TAG(
+							  rtp,
+							  "rtp packets [total:%d count:%d]  [ssrc:%" PRIu32 ", seq:%" PRIu16 "]",
+							  totalRTP,
+							  countRTP,
+							  packet->GetSsrc(),
+							  packet->GetSequenceNumber());
+
+							packet->Dump();
+							rtp->Dump();
+							
+						}
+						countRTP--;
+					}
+				} while (rtp);
+				//dumpRTP = false;
+				//if (totalRTP%100==0)
+				//	dumpRTP = true;
+				if (countRTP != 0)
+				{
+					MS_WARN_TAG(
+					  rtp,
+					  "rtp packets [total:%d count:%d]  [ssrc:%" PRIu32 ", seq:%" PRIu16 "]",
+					  totalRTP,
+					  countRTP,
+					  packet->GetSsrc(),
+					  packet->GetSequenceNumber());
+				}
+			}
+		}
+		else
+			this->listener->OnProducerRtpPacketReceived(this, packet);
 
 		return result;
 	}
@@ -1614,5 +1705,196 @@ namespace RTC
 		auto* rtpStream = it->second;
 
 		rtpStream->RequestKeyFrame();
+	}
+
+	Producer::RtpStorage* Producer::StorePacket(RTC::RtpPacket* packet, uint64_t nowMs)
+	{
+		MS_TRACE();
+
+		if (packet->GetSize() > RTC::MtuSize)
+		{
+			MS_WARN_TAG(
+			  rtp,
+			  "packet too big [ssrc:%" PRIu32 ", seq:%" PRIu16 ", size:%zu]",
+			  packet->GetSsrc(),
+			  packet->GetSequenceNumber(),
+			  packet->GetSize());
+
+			return nullptr;
+		}
+
+		/*MS_WARN_TAG(
+		  rtp,
+		  "packet receive [ssrc:%" PRIu32 ", seq:%" PRIu16 ", size:%zu]",
+		  packet->GetSsrc(),
+		  packet->GetSequenceNumber(),
+		  packet->GetSize());*/
+
+		auto ssrc         = packet->GetSsrc();
+		auto it   = this->mapSsrcRtpStorage.find(ssrc);
+		RtpStorage* rtpStorage = nullptr;
+		if (it != this->mapSsrcRtpStorage.end())
+		{
+			rtpStorage = it->second;
+		}
+		// Create a RtpStreamRecv for receiving a media stream.
+		else
+		{
+			rtpStorage = new RtpStorage();
+			// Insert into the maps.
+			this->mapSsrcRtpStorage[ssrc] = rtpStorage;
+		}
+
+		auto seq          = packet->GetSequenceNumber();
+		auto* storageItem = rtpStorage->buffer[seq];
+
+		// Buffer is empty.
+		if (rtpStorage->bufferSize == 0)
+		{
+			// Take the first storage position.
+			storageItem       = std::addressof(rtpStorage->storage[0]);
+			rtpStorage->buffer[seq] = storageItem;
+
+			// Increase buffer size and set start index.
+			rtpStorage->bufferSize++;
+			rtpStorage->bufferStartIdx = seq;
+		}
+		// The buffer item is already used. Check whether we should replace its
+		// storage with the new packet or just ignore it (if duplicated packet).
+		else if (storageItem)
+		{
+			auto* storedPacket = storageItem->packet;
+
+			if (packet->GetTimestamp() == storedPacket->GetTimestamp())
+				return rtpStorage;
+
+			// Reset the storage item.
+			resetStorageItem(storageItem);
+
+			// If this was the item referenced by the buffer start index, move it to
+			// the next one.
+			if (rtpStorage->bufferStartIdx == seq)
+				UpdateBufferStartIdx(rtpStorage);
+		}
+		// Buffer not yet full, add an entry.
+		else if (rtpStorage->bufferSize < rtpStorage->storage.size())
+		{
+			// Take the next storage position.
+			storageItem       = std::addressof(rtpStorage->storage[rtpStorage->bufferSize]);
+			rtpStorage->buffer[seq] = storageItem;
+
+			// Increase buffer size.
+			rtpStorage->bufferSize++;
+		}
+		// Buffer full, remove oldest entry and add new one.
+		else
+		{
+			auto* firstStorageItem = rtpStorage->buffer[rtpStorage->bufferStartIdx];
+
+			// Reset the first storage item.
+			resetStorageItem(firstStorageItem);
+
+			// Unfill the buffer start item.
+			rtpStorage->buffer[rtpStorage->bufferStartIdx] = nullptr;
+
+			// Move the buffer start index.
+			UpdateBufferStartIdx(rtpStorage);
+
+			// Take the freed storage item.
+			storageItem       = firstStorageItem;
+			rtpStorage->buffer[seq] = storageItem;
+		}
+
+		// Clone the packet into the retrieved storage item.
+		storageItem->packet = packet->Clone(storageItem->store);
+		storageItem->sendAtMs = nowMs + SendBufferMs;
+
+		MS_ASSERT(
+		  memcmp(storageItem->packet->GetData(), packet->GetData(), packet->GetSize()) == 0,
+		  "same cloned payload");
+
+		return rtpStorage;
+	}
+
+	/**
+	 * Iterates the buffer starting from the current start idx + 1 until next
+	 * used one. It takes into account that the buffer is circular.
+	 */
+	inline void Producer::UpdateBufferStartIdx(RtpStorage* rtpStorage)
+	{
+		// empty
+		if (0 == rtpStorage->bufferSize)
+			return;
+
+		uint16_t seq = rtpStorage->bufferStartIdx + 1;
+
+		for (uint32_t idx{ 0 }; idx < rtpStorage->buffer.size(); ++idx, ++seq)
+		{
+			auto* storageItem = rtpStorage->buffer[seq];
+
+			if (storageItem)
+			{
+				rtpStorage->bufferStartIdx = seq;
+				MS_WARN_TAG(rtp, "buffer start idx %u  [%p]", seq, this);
+				break;
+			}
+		}
+	}
+
+	RTC::RtpPacket* Producer::TakePacket(RtpStorage* rtpStorage, uint64_t nowMs)
+	{
+		Producer::StorageItem* firstStorageItem = rtpStorage->buffer[rtpStorage->bufferStartIdx];
+
+		if (!firstStorageItem)
+		{
+			MS_WARN_TAG(rtp, "empty firstStorageItem [%p]", this);
+			return nullptr;
+		}
+
+		if (!firstStorageItem->sendAtMs)
+		{
+			//MS_WARN_TAG(rtp, "not at send time1  [%p]", this);
+			return nullptr;
+		}
+
+		if (firstStorageItem->sendAtMs > nowMs)
+		{
+			//MS_WARN_TAG(rtp, "not at send time2  [%p]", this);
+			return nullptr;
+		}
+
+		rtpStorage->bufferSize--;
+
+		// Move the buffer start index.
+		UpdateBufferStartIdx(rtpStorage);
+
+		firstStorageItem->sendAtMs = 0;
+		return firstStorageItem->packet;
+	}
+	
+	Producer::RtpStorage::~RtpStorage()
+	{
+		if (this->storage.empty())
+			return;
+
+		for (uint32_t idx{ 0 }; idx < this->buffer.size(); ++idx)
+		{
+			auto* storageItem = this->buffer[idx];
+
+			if (!storageItem)
+			{
+				continue;
+			}
+
+			// Reset (free RTP packet) the storage item.
+			resetStorageItem(storageItem);
+
+			// Unfill the buffer item.
+			this->buffer[idx] = nullptr;
+		}
+
+		// Reset buffer.
+		this->bufferStartIdx = 0;
+		this->bufferSize     = 0;
 	}
 } // namespace RTC
