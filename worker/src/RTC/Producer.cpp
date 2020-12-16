@@ -726,27 +726,12 @@ namespace RTC
 			RtpStorage* rtpStorage = StorePacket(packet, nowMs);
 			if (rtpStorage)
 			{
-				MS_WARN_TAG(
-				  rtp,
-				  "rtp in [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 "]",
-				  packet->GetSsrc(),
-				  packet->GetSequenceNumber(),
-				  nowMs);
-
 				RTC::RtpPacket* rtp = nullptr;
 				do
 				{
 					rtp = TakePacket(rtpStorage, nowMs);
 					if (rtp)
-					{
-						MS_WARN_TAG(
-						  rtp,
-						  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 "]",
-						  rtp->GetSsrc(),
-						  rtp->GetSequenceNumber(),
-						  nowMs);
 						this->listener->OnProducerRtpPacketReceived(this, rtp);
-					}
 				} while (rtp);
 			}
 		}
@@ -1769,6 +1754,13 @@ namespace RTC
 		storageItem->packet->SetPayloadDescriptorHandler(packet->TakePayloadDescriptorHandler());
 		storageItem->sendAtMs = nowMs + SendBufferTimeMs;
 
+		MS_WARN_TAG(
+		  rtp,
+		  "rtp in [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 ", size:%d, start:%d]",
+		  packet->GetSsrc(),
+		  packet->GetSequenceNumber(),
+		  nowMs,(int)rtpStorage->bufferSize,(int)rtpStorage->bufferStartIdx);
+
 		return rtpStorage;
 	}
 
@@ -1781,7 +1773,7 @@ namespace RTC
 		// empty
 		if (0 == rtpStorage->bufferSize)
 		{
-			MS_WARN_TAG(rtp, "buffer Size = 0  [%p]", rtpStorage);
+			MS_WARN_TAG(rtp, "buffer Size = 0");
 			return;
 		}
 
@@ -1794,7 +1786,7 @@ namespace RTC
 			if (storageItem)
 			{
 				rtpStorage->bufferStartIdx = seq;
-				MS_WARN_TAG(rtp, "buffer start idx %u  [%p]", seq, rtpStorage);
+				//MS_WARN_TAG(rtp, "buffer start idx %u", seq);
 				break;
 			}
 		}
@@ -1809,12 +1801,17 @@ namespace RTC
 
 		if (!firstStorageItem->sendAtMs)
 		{
-			MS_WARN_TAG(rtp, "sendts=0 start:%d [%p]", rtpStorage->bufferStartIdx, rtpStorage);
+			//MS_WARN_TAG(rtp, "sendts: 0 start:%d", rtpStorage->bufferStartIdx);
 			return nullptr;
 		}
 		if (firstStorageItem->sendAtMs > nowMs)
 		{
-			MS_WARN_TAG(rtp, "[sendts:%" PRIu64 ", now:%" PRIu64 "]", firstStorageItem->sendAtMs, nowMs);
+			/*MS_WARN_TAG(
+			  rtp,
+			  "[sendts:%" PRIu64 ", now:%" PRIu64 "] start:%d",
+			  firstStorageItem->sendAtMs,
+			  nowMs,
+			  rtpStorage->bufferStartIdx);*/
 			return nullptr;
 		}
 
@@ -1824,6 +1821,14 @@ namespace RTC
 		UpdateBufferStartIdx(rtpStorage);
 
 		firstStorageItem->sendAtMs = 0;
+
+		MS_WARN_TAG(
+		  rtp,
+		  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 ", size:%d, start:%d]",
+		  firstStorageItem->packet->GetSsrc(),
+		  firstStorageItem->packet->GetSequenceNumber(),
+		  nowMs,(int)rtpStorage->bufferSize,(int)rtpStorage->bufferStartIdx);
+
 		return firstStorageItem->packet;
 	}
 	
