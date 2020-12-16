@@ -17,7 +17,7 @@
 
 namespace RTC
 {
-	constexpr uint64_t SendBufferMs{ 0u };  // Send buffer time in MS
+	constexpr uint64_t SendBufferTimeMs{ 30u };  // Send buffer time in MS
 
 	static void resetStorageItem(Producer::StorageItem* storageItem)
 	{
@@ -719,75 +719,41 @@ namespace RTC
 		// Post-process the packet.
 		PostProcessRtpPacket(packet);
 
-		// bxg: Buffer the packer
+		/// bxg: Buffer the packet for a while
 		if (this->kind == RTC::Media::Kind::VIDEO)
 		{
-			countRTP++;
-			totalRTP++;
 			uint64_t nowMs         = DepLibUV::GetTimeMs();
 			RtpStorage* rtpStorage = StorePacket(packet, nowMs);
 			if (rtpStorage)
 			{
-				//if (dumpRTP)
-				//	packet->Dump();
+				MS_WARN_TAG(
+				  rtp,
+				  "rtp in [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 "]",
+				  packet->GetSsrc(),
+				  packet->GetSequenceNumber(),
+				  nowMs);
+
 				RTC::RtpPacket* rtp = nullptr;
 				do
 				{
 					rtp = TakePacket(rtpStorage, nowMs);
 					if (rtp)
 					{
-						//if (dumpRTP)
-						//	rtp->Dump();
+						MS_WARN_TAG(
+						  rtp,
+						  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 "]",
+						  rtp->GetSsrc(),
+						  rtp->GetSequenceNumber(),
+						  nowMs);
 						this->listener->OnProducerRtpPacketReceived(this, rtp);
-						MS_ASSERT(
-						  rtp->GetSsrc() == packet->GetSsrc() &&
-						    rtp->GetSequenceNumber() == packet->GetSequenceNumber() &&
-						    rtp->GetSize() == packet->GetSize(),
-						  "rtp ssrc and seq same");
-
-						if (memcmp(rtp->GetData(), packet->GetData(), packet->GetSize()) != 0)
-						{
-							for (size_t i = 0; i < packet->GetSize(); i++)
-							{
-								if ( *(rtp->GetData() + i) != *(packet->GetData() + i) )
-								{
-									MS_WARN_TAG(rtp, "RTP: %d %u %u", 
-									    (int)i , *(rtp->GetData() + i), *(packet->GetData() + i));
-								}
-							}
-							MS_WARN_TAG(
-							  rtp,
-							  "rtp packets [total:%d count:%d]  [ssrc:%" PRIu32 ", seq:%" PRIu16 "]",
-							  totalRTP,
-							  countRTP,
-							  packet->GetSsrc(),
-							  packet->GetSequenceNumber());
-
-							packet->Dump();
-							rtp->Dump();
-							
-						}
-						countRTP--;
 					}
 				} while (rtp);
-				//dumpRTP = false;
-				//if (totalRTP%100==0)
-				//	dumpRTP = true;
-				if (countRTP != 0)
-				{
-					MS_WARN_TAG(
-					  rtp,
-					  "rtp packets [total:%d count:%d]  [ssrc:%" PRIu32 ", seq:%" PRIu16 "]",
-					  totalRTP,
-					  countRTP,
-					  packet->GetSsrc(),
-					  packet->GetSequenceNumber());
-				}
 			}
 		}
 		else
+		{
 			this->listener->OnProducerRtpPacketReceived(this, packet);
-
+		}
 		return result;
 	}
 
@@ -1723,13 +1689,6 @@ namespace RTC
 			return nullptr;
 		}
 
-		/*MS_WARN_TAG(
-		  rtp,
-		  "packet receive [ssrc:%" PRIu32 ", seq:%" PRIu16 ", size:%zu]",
-		  packet->GetSsrc(),
-		  packet->GetSequenceNumber(),
-		  packet->GetSize());*/
-
 		auto ssrc         = packet->GetSsrc();
 		auto it   = this->mapSsrcRtpStorage.find(ssrc);
 		RtpStorage* rtpStorage = nullptr;
@@ -1807,11 +1766,8 @@ namespace RTC
 
 		// Clone the packet into the retrieved storage item.
 		storageItem->packet = packet->Clone(storageItem->store);
-		storageItem->sendAtMs = nowMs + SendBufferMs;
-
-		MS_ASSERT(
-		  memcmp(storageItem->packet->GetData(), packet->GetData(), packet->GetSize()) == 0,
-		  "same cloned payload");
+		storageItem->packet->SetPayloadDescriptorHandler(packet->TakePayloadDescriptorHandler());
+		storageItem->sendAtMs = nowMs + SendBufferTimeMs;
 
 		return rtpStorage;
 	}
@@ -1824,7 +1780,10 @@ namespace RTC
 	{
 		// empty
 		if (0 == rtpStorage->bufferSize)
+		{
+			MS_WARN_TAG(rtp, "buffer Size = 0  [%p]", rtpStorage);
 			return;
+		}
 
 		uint16_t seq = rtpStorage->bufferStartIdx + 1;
 
@@ -1835,7 +1794,7 @@ namespace RTC
 			if (storageItem)
 			{
 				rtpStorage->bufferStartIdx = seq;
-				MS_WARN_TAG(rtp, "buffer start idx %u  [%p]", seq, this);
+				MS_WARN_TAG(rtp, "buffer start idx %u  [%p]", seq, rtpStorage);
 				break;
 			}
 		}
@@ -1846,20 +1805,16 @@ namespace RTC
 		Producer::StorageItem* firstStorageItem = rtpStorage->buffer[rtpStorage->bufferStartIdx];
 
 		if (!firstStorageItem)
-		{
-			MS_WARN_TAG(rtp, "empty firstStorageItem [%p]", this);
 			return nullptr;
-		}
 
 		if (!firstStorageItem->sendAtMs)
 		{
-			//MS_WARN_TAG(rtp, "not at send time1  [%p]", this);
+			MS_WARN_TAG(rtp, "sendts=0 start:%d [%p]", rtpStorage->bufferStartIdx, rtpStorage);
 			return nullptr;
 		}
-
 		if (firstStorageItem->sendAtMs > nowMs)
 		{
-			//MS_WARN_TAG(rtp, "not at send time2  [%p]", this);
+			MS_WARN_TAG(rtp, "[sendts:%" PRIu64 ", now:%" PRIu64 "]", firstStorageItem->sendAtMs, nowMs);
 			return nullptr;
 		}
 

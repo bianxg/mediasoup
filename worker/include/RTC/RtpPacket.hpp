@@ -593,7 +593,8 @@ namespace RTC
 
 		void SetPayloadDescriptorHandler(RTC::Codecs::PayloadDescriptorHandler* payloadDescriptorHandler)
 		{
-			this->payloadDescriptorHandler.reset(payloadDescriptorHandler);
+			if (payloadDescriptorHandler)
+				this->payloadDescriptorHandler.reset(payloadDescriptorHandler);
 		}
 
 		bool ProcessPayload(RTC::Codecs::EncodingContext* context);
@@ -601,6 +602,16 @@ namespace RTC
 		void RestorePayload();
 
 		void ShiftPayload(size_t payloadOffset, size_t shift, bool expand = true);
+
+		// bxg
+		void Compare(RtpPacket* other);
+		Codecs::PayloadDescriptorHandler* TakePayloadDescriptorHandler()
+		{
+			if (this->payloadDescriptorHandler)
+				return this->payloadDescriptorHandler.release();
+			else
+				return nullptr;
+		}
 
 	private:
 		void ParseExtensions();

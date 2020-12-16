@@ -952,4 +952,75 @@ namespace RTC
 			}
 		}
 	}
+	void RtpPacket::Compare(RtpPacket* other)
+	{
+		MS_ASSERT(this->GetSize() == other->GetSize(), "GetSize");
+		MS_ASSERT(memcmp(this->GetData(), other->GetData(), this->GetSize()) == 0, "GetData");
+
+		MS_ASSERT(
+		  this->mapOneByteExtensions.size() == other->mapOneByteExtensions.size(), "mapOneByteExtensions size");
+		MS_ASSERT(
+		  this->mapTwoBytesExtensions.size() == other->mapTwoBytesExtensions.size(),
+		  "mapTwoBytesExtensions size");
+
+		MS_ASSERT(this->midExtensionId == other->midExtensionId, "midExtensionId");
+		MS_ASSERT(this->ridExtensionId == other->ridExtensionId, "ridExtensionId");
+		MS_ASSERT(this->rridExtensionId == other->rridExtensionId, "rridExtensionId");
+		MS_ASSERT(this->absSendTimeExtensionId == other->absSendTimeExtensionId, "absSendTimeExtensionId");
+		MS_ASSERT(
+		  this->transportWideCc01ExtensionId == other->transportWideCc01ExtensionId, "transportWideCc01ExtensionId");
+		MS_ASSERT(this->frameMarking07ExtensionId == other->frameMarking07ExtensionId, "frameMarking07ExtensionId");
+		MS_ASSERT(this->frameMarkingExtensionId == other->frameMarkingExtensionId, "frameMarkingExtensionId");
+		MS_ASSERT(this->ssrcAudioLevelExtensionId == other->ssrcAudioLevelExtensionId, "ssrcAudioLevelExtensionId");
+		MS_ASSERT(
+		  this->videoOrientationExtensionId == other->videoOrientationExtensionId, "videoOrientationExtensionId");
+		MS_ASSERT(this->payloadLength == other->payloadLength, "payloadLength");
+		MS_ASSERT(this->payloadPadding == other->payloadPadding, "payloadPadding");
+		MS_ASSERT(this->size == other->size, "size");
+
+		MS_ASSERT(this->GetSpatialLayer() == other->GetSpatialLayer(), "GetSpatialLayer");
+		MS_ASSERT(this->GetTemporalLayer() == other->GetTemporalLayer(), "GetTemporalLayer");
+
+		uint32_t absSendtime1;
+		uint32_t absSendtime2;
+		
+		if (this->ReadAbsSendTime(absSendtime1))
+		{
+			MS_ASSERT(other->ReadAbsSendTime(absSendtime2),"ReadAbsSendTime");
+			MS_ASSERT(absSendtime1 == absSendtime2, "absSendtime");
+		}
+
+		MS_ASSERT(this->GetHeaderExtensionId() == other->GetHeaderExtensionId(), "GetHeaderExtensionId");
+		MS_ASSERT(
+		  this->GetHeaderExtensionLength() == other->GetHeaderExtensionLength(), "GetHeaderExtensionLength");
+		if (this->HasOneByteExtensions())
+			MS_ASSERT(other->HasOneByteExtensions(), "HasOneByteExtensions");
+		if (this->HasTwoBytesExtensions())
+			MS_ASSERT(other->HasTwoBytesExtensions(), "HasTwoBytesExtensions");
+		std::string mid1;
+		std::string mid2;
+		if(this->ReadMid(mid1))
+		{
+			MS_ASSERT(other->ReadMid(mid2),"ReadMid");
+			MS_ASSERT(mid1 == mid2,"mid");
+		}
+
+		std::string rid1;
+		std::string rid2;
+		if(this->ReadRid(rid1))
+		{
+			MS_ASSERT(other->ReadRid(rid2), "ReadRid");
+			MS_ASSERT(rid1 == rid2,"rid");
+		}
+
+		uint16_t wideSeqNumber1;
+		uint16_t wideSeqNumber2;
+		if(this->ReadTransportWideCc01(wideSeqNumber1))
+		{
+			MS_ASSERT(other->ReadTransportWideCc01(wideSeqNumber2), "ReadTransportWideCc01");
+			MS_ASSERT(wideSeqNumber1 == wideSeqNumber2, "wideSeqNumber");
+		}
+
+		MS_ASSERT(this->IsKeyFrame() == other->IsKeyFrame(),"IsKeyFrame");
+	}
 } // namespace RTC

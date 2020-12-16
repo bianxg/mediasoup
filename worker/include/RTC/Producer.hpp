@@ -213,9 +213,6 @@ namespace RTC
 		RTC::RtpPacket* TakePacket(RtpStorage* rtpStorage, uint64_t nowMs);
 		
 		std::map<uint32_t, RtpStorage*> mapSsrcRtpStorage;
-		bool dumpRTP{ true };
-		int countRTP{ 0 };
-		int totalRTP{ 0 };
 	};
 } // namespace RTC
 
