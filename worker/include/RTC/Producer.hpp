@@ -58,13 +58,11 @@ namespace RTC
 		struct RtpStorage
 		{
 			std::vector<StorageItem*> buffer;
+			uint16_t rtpStartIdx{ 0u };	    // rtp packet start index
+			size_t rtpSize{ 0u };		    // rtp packet size in buffer
 			uint16_t bufferStartIdx{ 0u };
 			size_t bufferSize{ 0u };
-
 			std::vector<StorageItem> storage;
-			uint16_t storageStartIdx{ 0u }; // buffer start index reference storage
-			uint16_t storageIdx{ 0u }; // next storage used index
-
 			uint16_t lastReceiveSeq{ 0 };
 			bool receiveStarted{ false };
 			uint16_t lastSendSeq{ 0 };
@@ -217,9 +215,9 @@ namespace RTC
 
 		// For buffer the received packets
 		RtpStorage* StorePacket(RTC::RtpPacket* packet, uint64_t nowMs);
-		inline void UpdateBufferStartIdx(RtpStorage* rtpStorage, uint64_t nowMs, const char* caller);
+		inline void UpdateBufferStartIdx(RtpStorage* rtpStorage, const char* caller);
 		RTC::RtpPacket* TakePacket(RtpStorage* rtpStorage, uint64_t nowMs);
-		inline void UpdateStorageStartIdx(RtpStorage* rtpStorage, const char* caller);
+		inline void UpdateRtpStartIdx(RtpStorage* rtpStorage);
 		
 		std::map<uint32_t, RtpStorage*> mapSsrcRtpStorage;
 	};
