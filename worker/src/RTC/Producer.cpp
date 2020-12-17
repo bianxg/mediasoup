@@ -17,7 +17,7 @@
 
 namespace RTC
 {
-	constexpr uint64_t SendBufferTimeMs{ 30u };  // Send buffer time in MS
+	constexpr uint64_t SendBufferTimeMs{ 10u };  // Send buffer time in MS
 
 	static void resetStorageItem(Producer::StorageItem* storageItem)
 	{
@@ -727,12 +727,22 @@ namespace RTC
 			if (rtpStorage)
 			{
 				RTC::RtpPacket* rtp = nullptr;
+				int count           = 0;
 				do
 				{
 					rtp = TakePacket(rtpStorage, nowMs);
 					if (rtp)
+					{
 						this->listener->OnProducerRtpPacketReceived(this, rtp);
+						count++;
+						if (count >= 2)
+							break;
+					}
 				} while (rtp);
+			}
+			else
+			{
+				this->listener->OnProducerRtpPacketReceived(this, packet);
 			}
 		}
 		else
@@ -1702,6 +1712,12 @@ namespace RTC
 			// Increase buffer size and set start index.
 			rtpStorage->bufferSize++;
 			rtpStorage->bufferStartIdx = seq;
+			rtpStorage->storageIdx      = 1;
+
+			if (rtpStorage->storageStartIdx == 0)
+			{
+				rtpStorage->storageStartIdx = seq;
+			}
 		}
 		// The buffer item is already used. Check whether we should replace its
 		// storage with the new packet or just ignore it (if duplicated packet).
@@ -1718,13 +1734,15 @@ namespace RTC
 			// If this was the item referenced by the buffer start index, move it to
 			// the next one.
 			if (rtpStorage->bufferStartIdx == seq)
-				UpdateBufferStartIdx(rtpStorage);
+				UpdateBufferStartIdx(rtpStorage,nowMs,"store");
+			if (rtpStorage->storageStartIdx == seq)
+				UpdateStorageStartIdx(rtpStorage,"store used");
 		}
 		// Buffer not yet full, add an entry.
-		else if (rtpStorage->bufferSize < rtpStorage->storage.size())
+		else if (rtpStorage->storageIdx < rtpStorage->storage.size())
 		{
 			// Take the next storage position.
-			storageItem       = std::addressof(rtpStorage->storage[rtpStorage->bufferSize]);
+			storageItem             = std::addressof(rtpStorage->storage[rtpStorage->storageIdx++]);
 			rtpStorage->buffer[seq] = storageItem;
 
 			// Increase buffer size.
@@ -1733,16 +1751,16 @@ namespace RTC
 		// Buffer full, remove oldest entry and add new one.
 		else
 		{
-			auto* firstStorageItem = rtpStorage->buffer[rtpStorage->bufferStartIdx];
+			auto* firstStorageItem = rtpStorage->buffer[rtpStorage->storageStartIdx];
 
 			// Reset the first storage item.
 			resetStorageItem(firstStorageItem);
 
 			// Unfill the buffer start item.
-			rtpStorage->buffer[rtpStorage->bufferStartIdx] = nullptr;
+			rtpStorage->buffer[rtpStorage->storageStartIdx] = nullptr;
 
 			// Move the buffer start index.
-			UpdateBufferStartIdx(rtpStorage);
+			UpdateStorageStartIdx(rtpStorage, "buffer full");
 
 			// Take the freed storage item.
 			storageItem       = firstStorageItem;
@@ -1752,7 +1770,34 @@ namespace RTC
 		// Clone the packet into the retrieved storage item.
 		storageItem->packet = packet->Clone(storageItem->store);
 		storageItem->packet->SetPayloadDescriptorHandler(packet->TakePayloadDescriptorHandler());
-		storageItem->sendAtMs = nowMs + SendBufferTimeMs;
+		if (packet->HasMarker())
+			storageItem->sendAtMs = nowMs; // The last packet is send at once
+		else
+			storageItem->sendAtMs = nowMs + SendBufferTimeMs;
+
+		if (rtpStorage->receiveStarted)
+		{
+			uint16_t seq = packet->GetSequenceNumber();
+			int interval = seq - rtpStorage->lastReceiveSeq;
+			if (interval != 1)
+			{
+				MS_WARN_TAG(
+				  rtp,
+				  "rtp in [ssrc:%" PRIu32 ", seq:%" PRIu16 ", seq:%" PRIu16 ", ts:%" PRIu64
+				  ", size:%d, start:%d]",
+				  packet->GetSsrc(),
+				  packet->GetSequenceNumber(),
+				  rtpStorage->lastReceiveSeq,
+				  nowMs,
+				  (int)rtpStorage->bufferSize,
+				  (int)rtpStorage->bufferStartIdx);
+			}
+			MS_ASSERT(interval == 1, "receive lost");
+		}
+		else
+			rtpStorage->receiveStarted = true;
+		rtpStorage->lastReceiveSeq = packet->GetSequenceNumber();
+		
 
 		MS_WARN_TAG(
 		  rtp,
@@ -1764,16 +1809,36 @@ namespace RTC
 		return rtpStorage;
 	}
 
+	inline void Producer::UpdateStorageStartIdx(RtpStorage* rtpStorage, const char* caller)
+	{
+		uint16_t seq = rtpStorage->storageStartIdx + 1;
+
+		for (uint32_t idx{ 0 }; idx < rtpStorage->buffer.size(); ++idx, ++seq)
+		{
+			auto* storageItem = rtpStorage->buffer[seq];
+
+			if (storageItem)
+			{
+				rtpStorage->storageStartIdx = seq;
+				MS_WARN_TAG(
+				  rtp,
+				  "storage start idx: %d caller: %s",
+				  (int)rtpStorage->bufferStartIdx,caller);
+				break;
+			}
+		}
+	}
+
 	/**
 	 * Iterates the buffer starting from the current start idx + 1 until next
 	 * used one. It takes into account that the buffer is circular.
 	 */
-	inline void Producer::UpdateBufferStartIdx(RtpStorage* rtpStorage)
+	inline void Producer::UpdateBufferStartIdx(RtpStorage* rtpStorage, uint64_t nowMs, const char* caller)
 	{
 		// empty
 		if (0 == rtpStorage->bufferSize)
 		{
-			MS_WARN_TAG(rtp, "buffer Size = 0");
+			//MS_WARN_TAG(rtp, "buffer Size = 0");
 			return;
 		}
 
@@ -1786,7 +1851,14 @@ namespace RTC
 			if (storageItem)
 			{
 				rtpStorage->bufferStartIdx = seq;
-				//MS_WARN_TAG(rtp, "buffer start idx %u", seq);
+				MS_WARN_TAG(
+				  rtp,
+				  "buffer start idx [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 ", size:%d, start:%d] %s",
+				  storageItem->packet->GetSsrc(),
+				  storageItem->packet->GetSequenceNumber(),
+				  nowMs,
+				  (int)rtpStorage->bufferSize,
+				  (int)rtpStorage->bufferStartIdx,caller);
 				break;
 			}
 		}
@@ -1818,17 +1890,42 @@ namespace RTC
 		rtpStorage->bufferSize--;
 
 		// Move the buffer start index.
-		UpdateBufferStartIdx(rtpStorage);
-
-		firstStorageItem->sendAtMs = 0;
+		UpdateBufferStartIdx(rtpStorage, nowMs, "take");
 
 		MS_WARN_TAG(
 		  rtp,
-		  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 ", size:%d, start:%d]",
+		  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu64 ", sts:%" PRIu64 ", size:%d, start:%d]",
 		  firstStorageItem->packet->GetSsrc(),
 		  firstStorageItem->packet->GetSequenceNumber(),
-		  nowMs,(int)rtpStorage->bufferSize,(int)rtpStorage->bufferStartIdx);
+		  nowMs,
+		  firstStorageItem->sendAtMs,
+		  (int)rtpStorage->bufferSize,
+		  (int)rtpStorage->bufferStartIdx);
 
+		firstStorageItem->sendAtMs = 0;
+		if (rtpStorage->sendStarted)
+		{
+			uint16_t seq = firstStorageItem->packet->GetSequenceNumber();
+			int interval = seq - rtpStorage->lastSendSeq;
+			if(interval != 1)
+			{
+				MS_WARN_TAG(
+				  rtp,
+				  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
+				  ", sts:%" PRIu64 ", size:%d, start:%d]",
+				  firstStorageItem->packet->GetSsrc(),
+				  firstStorageItem->packet->GetSequenceNumber(),
+				  rtpStorage->lastSendSeq,
+				  nowMs,
+				  firstStorageItem->sendAtMs,
+				  (int)rtpStorage->bufferSize,
+				  (int)rtpStorage->bufferStartIdx);
+			}
+			MS_ASSERT(interval == 1, "send interval");
+		}
+		else
+			rtpStorage->sendStarted = true;
+		rtpStorage->lastSendSeq = firstStorageItem->packet->GetSequenceNumber();
 		return firstStorageItem->packet;
 	}
 	
@@ -1855,6 +1952,7 @@ namespace RTC
 
 		// Reset buffer.
 		this->bufferStartIdx = 0;
+		this->storageIdx      = 0;
 		this->bufferSize     = 0;
 	}
 } // namespace RTC

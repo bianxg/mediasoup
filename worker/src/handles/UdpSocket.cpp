@@ -1,5 +1,5 @@
 #define MS_CLASS "UdpSocket"
-// #define MS_LOG_DEV_LEVEL 3
+#define MS_LOG_DEV_LEVEL 3
 
 #include "handles/UdpSocket.hpp"
 #include "Logger.hpp"
