@@ -1,5 +1,6 @@
 #define MS_CLASS "RTC::Producer"
-#define MS_LOG_DEV_LEVEL 3
+//#define MS_LOG_DEV_LEVEL 3
+#define USE_PRODUCE_BUFFER
 
 #include "RTC/Producer.hpp"
 #include "DepLibUV.hpp"
@@ -720,6 +721,7 @@ namespace RTC
 		PostProcessRtpPacket(packet);
 
 		/// bxg: Buffer the packet for a while
+#ifdef USE_PRODUCE_BUFFER
 		//if (this->kind == RTC::Media::Kind::VIDEO)
 		{
 			uint64_t nowMs         = DepLibUV::GetTimeMs();
@@ -745,10 +747,10 @@ namespace RTC
 				this->listener->OnProducerRtpPacketReceived(this, packet);
 			}
 		}
-		//else
-		//{
-		//	this->listener->OnProducerRtpPacketReceived(this, packet);
-		//}
+#else
+
+		this->listener->OnProducerRtpPacketReceived(this, packet);
+#endif
 		return result;
 	}
 
@@ -1762,6 +1764,8 @@ namespace RTC
 			rtpStorage->buffer[seq] = storageItem;
 		}
 
+		if (rtpStorage->rtpSize == 0)
+			rtpStorage->rtpStartIdx = seq;
 		rtpStorage->rtpSize++;
 
 		// Clone the packet into the retrieved storage item.
@@ -1772,7 +1776,7 @@ namespace RTC
 		else
 			storageItem->sendAtMs = nowMs + SendBufferTimeMs;
 		
-		if (rtpStorage->receiveStarted)
+		/*if (rtpStorage->receiveStarted)
 		{
 			uint16_t seq = packet->GetSequenceNumber();
 			int interval = seq - rtpStorage->lastReceiveSeq;
@@ -1780,7 +1784,7 @@ namespace RTC
 			{
 				MS_WARN_TAG(
 				  rtp,
-				  "rtp in [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
+				  "rtp in lost [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
 				  ", size:%d, start:%d]",
 				  packet->GetSsrc(),
 				  packet->GetSequenceNumber(),
@@ -1794,6 +1798,7 @@ namespace RTC
 		else
 			rtpStorage->receiveStarted = true;
 		rtpStorage->lastReceiveSeq = packet->GetSequenceNumber();
+		*/
 
 		/*MS_WARN_TAG(
 		  rtp,
@@ -1814,17 +1819,17 @@ namespace RTC
 
 		if (!firstStorageItem->sendAtMs)
 		{
-			//MS_WARN_TAG(rtp, "sendts: 0 start:%d", rtpStorage->bufferStartIdx);
+			// MS_WARN_TAG(rtp, "sendts: 0 start:%d", rtpStorage->rtpStartIdx);
 			return nullptr;
 		}
 		if (firstStorageItem->sendAtMs > nowMs)
 		{
-			/*MS_WARN_TAG(
+			/* MS_WARN_TAG(
 			  rtp,
 			  "[sendts:%" PRIu64 ", now:%" PRIu64 "] start:%d",
 			  firstStorageItem->sendAtMs,
 			  nowMs,
-			  rtpStorage->bufferStartIdx);*/
+			  rtpStorage->rtpStartIdx); */
 			return nullptr;
 		}
 
@@ -1840,11 +1845,11 @@ namespace RTC
 		  firstStorageItem->packet->GetSequenceNumber(),
 		  nowMs,
 		  firstStorageItem->sendAtMs,
-		  (int)rtpStorage->bufferSize,
-		  (int)rtpStorage->bufferStartIdx);*/
+		  (int)rtpStorage->rtpSize,
+		  (int)rtpStorage->rtpStartIdx);*/
 
 		firstStorageItem->sendAtMs = 0;
-		if (rtpStorage->sendStarted)
+		/*if (rtpStorage->sendStarted)
 		{
 			uint16_t seq = firstStorageItem->packet->GetSequenceNumber();
 			int interval = seq - rtpStorage->lastSendSeq;
@@ -1852,7 +1857,7 @@ namespace RTC
 			{
 				MS_WARN_TAG(
 				  rtp,
-				  "rtp out [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
+				  "rtp out lost [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
 				  ", sts:%" PRIu64 ", size:%d, start:%d]",
 				  firstStorageItem->packet->GetSsrc(),
 				  firstStorageItem->packet->GetSequenceNumber(),
@@ -1866,13 +1871,15 @@ namespace RTC
 		}
 		else
 			rtpStorage->sendStarted = true;
-		rtpStorage->lastSendSeq = firstStorageItem->packet->GetSequenceNumber();
+		rtpStorage->lastSendSeq = firstStorageItem->packet->GetSequenceNumber();*/
 
 		return firstStorageItem->packet;
 	}
 
-		inline void Producer::UpdateRtpStartIdx(RtpStorage* rtpStorage)
+	inline void Producer::UpdateRtpStartIdx(RtpStorage* rtpStorage)
 	{
+		  if (rtpStorage->rtpSize == 0)
+			  return;
 		uint16_t seq = rtpStorage->rtpStartIdx + 1;
 
 		for (uint32_t idx{ 0 }; idx < rtpStorage->buffer.size(); ++idx, ++seq)
