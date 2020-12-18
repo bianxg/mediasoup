@@ -1,5 +1,5 @@
 #define MS_CLASS "RTC::NackGenerator"
-// #define MS_LOG_DEV_LEVEL 3
+//#define MS_LOG_DEV_LEVEL 3
 
 #include "RTC/NackGenerator.hpp"
 #include "DepLibUV.hpp"
@@ -86,9 +86,9 @@ namespace RTC
 				  "ignoring older packet not present in the NACK list [ssrc:%" PRIu32 ", seq:%" PRIu16 "]",
 				  packet->GetSsrc(),
 				  packet->GetSequenceNumber());
+				return false; // bxg
 			}
-
-			return false;
+			return true; // bxg
 		}
 
 		// If we are here it means that we may have lost some packets so seq is
@@ -117,7 +117,7 @@ namespace RTC
 
 			// Do not let a packet pass if it's newer than last seen seq and came via
 			// RTX.
-			return false;
+			return true; // bxg
 		}
 
 		AddPacketsToNackList(this->lastSeq + 1, seq);

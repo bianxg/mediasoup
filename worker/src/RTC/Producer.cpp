@@ -18,7 +18,7 @@
 
 namespace RTC
 {
-	constexpr uint64_t SendBufferTimeMs{ 30u };  // Send buffer time in MS
+	constexpr uint64_t SendBufferTimeMs{ 100u };  // Send buffer time in MS
 
 	static void resetStorageItem(Producer::StorageItem* storageItem)
 	{
@@ -1771,9 +1771,9 @@ namespace RTC
 		// Clone the packet into the retrieved storage item.
 		storageItem->packet = packet->Clone(storageItem->store);
 		storageItem->packet->SetPayloadDescriptorHandler(packet->TakePayloadDescriptorHandler());
-		if (packet->HasMarker())
-			storageItem->sendAtMs = nowMs; // The last packet is send at once
-		else
+		//if (packet->HasMarker())
+		//	storageItem->sendAtMs = nowMs; // The last packet is send at once
+		//else
 			storageItem->sendAtMs = nowMs + SendBufferTimeMs;
 		
 		/*if (rtpStorage->receiveStarted)
@@ -1848,8 +1848,7 @@ namespace RTC
 		  (int)rtpStorage->rtpSize,
 		  (int)rtpStorage->rtpStartIdx);*/
 
-		firstStorageItem->sendAtMs = 0;
-		/*if (rtpStorage->sendStarted)
+		if (rtpStorage->sendStarted)
 		{
 			uint16_t seq = firstStorageItem->packet->GetSequenceNumber();
 			int interval = seq - rtpStorage->lastSendSeq;
@@ -1857,8 +1856,9 @@ namespace RTC
 			{
 				MS_WARN_TAG(
 				  rtp,
-				  "rtp out lost [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
+				  "rtp out lost %d [ssrc:%" PRIu32 ", seq:%" PRIu16 ", last:%" PRIu16 ", ts:%" PRIu64
 				  ", sts:%" PRIu64 ", size:%d, start:%d]",
+				  interval-1,
 				  firstStorageItem->packet->GetSsrc(),
 				  firstStorageItem->packet->GetSequenceNumber(),
 				  rtpStorage->lastSendSeq,
@@ -1871,8 +1871,9 @@ namespace RTC
 		}
 		else
 			rtpStorage->sendStarted = true;
-		rtpStorage->lastSendSeq = firstStorageItem->packet->GetSequenceNumber();*/
-
+		rtpStorage->lastSendSeq = firstStorageItem->packet->GetSequenceNumber();
+		
+		firstStorageItem->sendAtMs = 0;
 		return firstStorageItem->packet;
 	}
 

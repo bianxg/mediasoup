@@ -67,7 +67,7 @@ namespace RTC
 			bool receiveStarted{ false };
 			uint16_t lastSendSeq{ 0 };
 			bool sendStarted{ false };
-			RtpStorage() : buffer(65536), storage(2000)
+			RtpStorage() : buffer(65536), storage(3000)
 			{
 			}
 			~RtpStorage();
