@@ -381,7 +381,7 @@ export class WebRtcTransport extends
 	 */
 	async getStats(): Promise<WebRtcTransportStat[]>
 	{
-		logger.debug('getStats()');
+		// logger.debug('getStats()');
 
 		return this.channel.request('transport.getStats', this.internal);
 	}

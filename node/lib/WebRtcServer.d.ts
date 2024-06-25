@@ -21,7 +21,7 @@ export interface WebRtcServerListenInfo {
      */
     port: number;
 }
-export declare type WebRtcServerOptions = {
+export type WebRtcServerOptions = {
     /**
      * Listen infos.
      */
@@ -31,11 +31,11 @@ export declare type WebRtcServerOptions = {
      */
     appData?: Record<string, unknown>;
 };
-export declare type WebRtcServerEvents = {
+export type WebRtcServerEvents = {
     workerclose: [];
     '@close': [];
 };
-export declare type WebRtcServerObserverEvents = {
+export type WebRtcServerObserverEvents = {
     close: [];
     webrtctransporthandled: [WebRtcTransport];
     webrtctransportunhandled: [WebRtcTransport];

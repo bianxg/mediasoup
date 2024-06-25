@@ -14,12 +14,12 @@ export interface ActiveSpeakerObserverActivity {
      */
     producer: Producer;
 }
-export declare type ActiveSpeakerObserverEvents = RtpObserverEvents & {
+export type ActiveSpeakerObserverEvents = RtpObserverEvents & {
     dominantspeaker: [{
         producer: Producer;
     }];
 };
-export declare type ActiveSpeakerObserverObserverEvents = RtpObserverObserverEvents & {
+export type ActiveSpeakerObserverObserverEvents = RtpObserverObserverEvents & {
     dominantspeaker: [{
         producer: Producer;
     }];

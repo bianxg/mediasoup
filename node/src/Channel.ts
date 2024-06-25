@@ -229,7 +229,8 @@ export class Channel extends EnhancedEventEmitter
 
 		const id = this.#nextId;
 
-		logger.debug('request() [method:%s, id:%s]', method, id);
+		if(method !== 'transport.getStats')
+			logger.debug('request() [method:%s, id:%s]', method, id);
 
 		if (this.#closed)
 			throw new InvalidStateError('Channel closed');
@@ -293,8 +294,9 @@ export class Channel extends EnhancedEventEmitter
 
 			if (msg.accepted)
 			{
-				logger.debug(
-					'request succeeded [method:%s, id:%s]', sent.method, sent.id);
+				if (sent.method !== 'transport.getStats')
+					logger.debug(
+						'request succeeded [method:%s, id:%s]', sent.method, sent.id);
 
 				sent.resolve(msg.data);
 			}

@@ -141,7 +141,7 @@ class WebRtcTransport extends Transport_1.Transport {
      * @override
      */
     async getStats() {
-        logger.debug('getStats()');
+        // logger.debug('getStats()');
         return this.channel.request('transport.getStats', this.internal);
     }
     /**

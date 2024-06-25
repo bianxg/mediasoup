@@ -31,11 +31,11 @@ export interface AudioLevelObserverVolume {
      */
     volume: number;
 }
-export declare type AudioLevelObserverEvents = RtpObserverEvents & {
+export type AudioLevelObserverEvents = RtpObserverEvents & {
     volumes: [AudioLevelObserverVolume[]];
     silence: [];
 };
-export declare type AudioLevelObserverObserverEvents = RtpObserverObserverEvents & {
+export type AudioLevelObserverObserverEvents = RtpObserverObserverEvents & {
     volumes: [AudioLevelObserverVolume[]];
     silence: [];
 };

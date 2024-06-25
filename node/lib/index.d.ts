@@ -14,7 +14,7 @@ export declare const version = "3.10.5";
  * Expose parseScalabilityMode() function.
  */
 export { parse as parseScalabilityMode } from './scalabilityModes';
-export declare type ObserverEvents = {
+export type ObserverEvents = {
     newworker: [Worker];
 };
 declare const observer: EnhancedEventEmitter<ObserverEvents>;

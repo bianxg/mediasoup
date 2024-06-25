@@ -15,7 +15,7 @@ import { ActiveSpeakerObserver, ActiveSpeakerObserverOptions } from './ActiveSpe
 import { AudioLevelObserver, AudioLevelObserverOptions } from './AudioLevelObserver';
 import { RtpCapabilities, RtpCodecCapability } from './RtpParameters';
 import { NumSctpStreams } from './SctpParameters';
-export declare type RouterOptions = {
+export type RouterOptions = {
     /**
      * Router media codecs.
      */
@@ -25,7 +25,7 @@ export declare type RouterOptions = {
      */
     appData?: Record<string, unknown>;
 };
-export declare type PipeToRouterOptions = {
+export type PipeToRouterOptions = {
     /**
      * The id of the Producer to consume.
      */
@@ -59,7 +59,7 @@ export declare type PipeToRouterOptions = {
      */
     enableSrtp?: boolean;
 };
-export declare type PipeToRouterResult = {
+export type PipeToRouterResult = {
     /**
      * The Consumer created in the current Router.
      */
@@ -77,14 +77,14 @@ export declare type PipeToRouterResult = {
      */
     pipeDataProducer?: DataProducer;
 };
-declare type PipeTransportPair = {
+type PipeTransportPair = {
     [key: string]: PipeTransport;
 };
-export declare type RouterEvents = {
+export type RouterEvents = {
     workerclose: [];
     '@close': [];
 };
-export declare type RouterObserverEvents = {
+export type RouterObserverEvents = {
     close: [];
     newtransport: [Transport];
     newrtpobserver: [RtpObserver];

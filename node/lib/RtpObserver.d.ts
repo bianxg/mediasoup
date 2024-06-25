@@ -2,18 +2,18 @@ import { EnhancedEventEmitter } from './EnhancedEventEmitter';
 import { Channel } from './Channel';
 import { PayloadChannel } from './PayloadChannel';
 import { Producer } from './Producer';
-export declare type RtpObserverEvents = {
+export type RtpObserverEvents = {
     routerclose: [];
     '@close': [];
 };
-export declare type RtpObserverObserverEvents = {
+export type RtpObserverObserverEvents = {
     close: [];
     pause: [];
     resume: [];
     addproducer: [Producer];
     removeproducer: [Producer];
 };
-export declare type RtpObserverAddRemoveProducerOptions = {
+export type RtpObserverAddRemoveProducerOptions = {
     /**
      * The id of the Producer to be added or removed.
      */

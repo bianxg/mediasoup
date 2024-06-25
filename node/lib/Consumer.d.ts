@@ -4,7 +4,7 @@ import { Channel } from './Channel';
 import { PayloadChannel } from './PayloadChannel';
 import { ProducerStat } from './Producer';
 import { MediaKind, RtpCapabilities, RtpParameters } from './RtpParameters';
-export declare type ConsumerOptions = {
+export type ConsumerOptions = {
     /**
      * The id of the Producer to consume.
      */
@@ -56,11 +56,11 @@ export declare type ConsumerOptions = {
 /**
  * Valid types for 'trace' event.
  */
-export declare type ConsumerTraceEventType = 'rtp' | 'keyframe' | 'nack' | 'pli' | 'fir';
+export type ConsumerTraceEventType = 'rtp' | 'keyframe' | 'nack' | 'pli' | 'fir';
 /**
  * 'trace' event data.
  */
-export declare type ConsumerTraceEventData = {
+export type ConsumerTraceEventData = {
     /**
      * Trace type.
      */
@@ -78,7 +78,7 @@ export declare type ConsumerTraceEventData = {
      */
     info: any;
 };
-export declare type ConsumerScore = {
+export type ConsumerScore = {
     /**
      * The score of the RTP stream of the consumer.
      */
@@ -93,7 +93,7 @@ export declare type ConsumerScore = {
      */
     producerScores: number[];
 };
-export declare type ConsumerLayers = {
+export type ConsumerLayers = {
     /**
      * The spatial layer index (from 0 to N).
      */
@@ -103,7 +103,7 @@ export declare type ConsumerLayers = {
      */
     temporalLayer?: number;
 };
-export declare type ConsumerStat = {
+export type ConsumerStat = {
     type: string;
     timestamp: number;
     ssrc: number;
@@ -128,8 +128,8 @@ export declare type ConsumerStat = {
 /**
  * Consumer type.
  */
-export declare type ConsumerType = 'simple' | 'simulcast' | 'svc' | 'pipe';
-export declare type ConsumerEvents = {
+export type ConsumerType = 'simple' | 'simulcast' | 'svc' | 'pipe';
+export type ConsumerEvents = {
     transportclose: [];
     producerclose: [];
     producerpause: [];
@@ -141,7 +141,7 @@ export declare type ConsumerEvents = {
     '@close': [];
     '@producerclose': [];
 };
-export declare type ConsumerObserverEvents = {
+export type ConsumerObserverEvents = {
     close: [];
     pause: [];
     resume: [];

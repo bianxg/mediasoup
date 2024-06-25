@@ -20,7 +20,7 @@ export interface TransportListenIp {
 /**
  * Transport protocol.
  */
-export declare type TransportProtocol = 'udp' | 'tcp';
+export type TransportProtocol = 'udp' | 'tcp';
 export interface TransportTuple {
     localIp: string;
     localPort: number;
@@ -31,7 +31,7 @@ export interface TransportTuple {
 /**
  * Valid types for 'trace' event.
  */
-export declare type TransportTraceEventType = 'probation' | 'bwe';
+export type TransportTraceEventType = 'probation' | 'bwe';
 /**
  * 'trace' event data.
  */
@@ -53,8 +53,8 @@ export interface TransportTraceEventData {
      */
     info: any;
 }
-export declare type SctpState = 'new' | 'connecting' | 'connected' | 'failed' | 'closed';
-export declare type TransportEvents = {
+export type SctpState = 'new' | 'connecting' | 'connected' | 'failed' | 'closed';
+export type TransportEvents = {
     routerclose: [];
     listenserverclose: [];
     trace: [TransportTraceEventData];
@@ -65,7 +65,7 @@ export declare type TransportEvents = {
     '@dataproducerclose': [DataProducer];
     '@listenserverclose': [];
 };
-export declare type TransportObserverEvents = {
+export type TransportObserverEvents = {
     close: [];
     newproducer: [Producer];
     newconsumer: [Consumer];

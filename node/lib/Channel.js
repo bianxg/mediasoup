@@ -141,7 +141,8 @@ class Channel extends EnhancedEventEmitter_1.EnhancedEventEmitter {
     async request(method, internal, data) {
         this.#nextId < 4294967295 ? ++this.#nextId : (this.#nextId = 1);
         const id = this.#nextId;
-        logger.debug('request() [method:%s, id:%s]', method, id);
+        if (method !== 'transport.getStats')
+            logger.debug('request() [method:%s, id:%s]', method, id);
         if (this.#closed)
             throw new errors_1.InvalidStateError('Channel closed');
         const request = { id, method, internal, data };
@@ -182,7 +183,8 @@ class Channel extends EnhancedEventEmitter_1.EnhancedEventEmitter {
                 return;
             }
             if (msg.accepted) {
-                logger.debug('request succeeded [method:%s, id:%s]', sent.method, sent.id);
+                if (sent.method !== 'transport.getStats')
+                    logger.debug('request succeeded [method:%s, id:%s]', sent.method, sent.id);
                 sent.resolve(msg.data);
             }
             else if (msg.error) {
