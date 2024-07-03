@@ -9,20 +9,28 @@ class Logger {
     #error;
     constructor(prefix) {
         if (prefix) {
-            this.#debug = (0, debug_1.default)(`${APP_NAME}:${prefix}`);
-            this.#warn = (0, debug_1.default)(`${APP_NAME}:WARN:${prefix}`);
-            this.#error = (0, debug_1.default)(`${APP_NAME}:ERROR:${prefix}`);
+            this.#debug = this.createLogger(`${APP_NAME}:${prefix}`);
+            this.#warn = this.createLogger(`${APP_NAME}:WARN:${prefix}`);
+            this.#error = this.createLogger(`${APP_NAME}:ERROR:${prefix}`);
         }
         else {
-            this.#debug = (0, debug_1.default)(APP_NAME);
-            this.#warn = (0, debug_1.default)(`${APP_NAME}:WARN`);
-            this.#error = (0, debug_1.default)(`${APP_NAME}:ERROR`);
+            this.#debug = this.createLogger(APP_NAME);
+            this.#warn = this.createLogger(`${APP_NAME}:WARN`);
+            this.#error = this.createLogger(`${APP_NAME}:ERROR`);
         }
         /* eslint-disable no-console */
-        this.#debug.log = console.info.bind(console);
-        this.#warn.log = console.warn.bind(console);
-        this.#error.log = console.error.bind(console);
+        // this.#debug.log = console.info.bind(console);
+        // this.#warn.log = console.warn.bind(console);
+        // this.#error.log = console.error.bind(console);
         /* eslint-enable no-console */
+    }
+    createLogger(namespace) {
+        const logger = (0, debug_1.default)(namespace);
+        logger.log = (...args) => {
+            const currentDate = new Date().toISOString();
+            console.log(`[${currentDate}]`, ...args);
+        };
+        return logger;
     }
     get debug() {
         return this.#debug;

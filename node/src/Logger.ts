@@ -12,22 +12,31 @@ export class Logger
 	{
 		if (prefix)
 		{
-			this.#debug = debug(`${APP_NAME}:${prefix}`);
-			this.#warn = debug(`${APP_NAME}:WARN:${prefix}`);
-			this.#error = debug(`${APP_NAME}:ERROR:${prefix}`);
+			this.#debug = this.createLogger(`${APP_NAME}:${prefix}`);
+			this.#warn = this.createLogger(`${APP_NAME}:WARN:${prefix}`);
+			this.#error = this.createLogger(`${APP_NAME}:ERROR:${prefix}`);
 		}
 		else
 		{
-			this.#debug = debug(APP_NAME);
-			this.#warn = debug(`${APP_NAME}:WARN`);
-			this.#error = debug(`${APP_NAME}:ERROR`);
+			this.#debug = this.createLogger(APP_NAME);
+			this.#warn = this.createLogger(`${APP_NAME}:WARN`);
+			this.#error = this.createLogger(`${APP_NAME}:ERROR`);
 		}
 
 		/* eslint-disable no-console */
-		this.#debug.log = console.info.bind(console);
-		this.#warn.log = console.warn.bind(console);
-		this.#error.log = console.error.bind(console);
+		// this.#debug.log = console.info.bind(console);
+		// this.#warn.log = console.warn.bind(console);
+		// this.#error.log = console.error.bind(console);
 		/* eslint-enable no-console */
+	}
+
+	private createLogger(namespace: string): debug.Debugger {
+		const logger = debug(namespace);
+		logger.log = (...args: any[]) => {
+			const currentDate = new Date().toISOString();
+			console.log(`[${currentDate}]`, ...args);
+		};
+		return logger;
 	}
 
 	get debug(): debug.Debugger
