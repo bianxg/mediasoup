@@ -452,7 +452,7 @@ export class WebRtcTransport<
 	 * @override
 	 */
 	async getStats(): Promise<WebRtcTransportStat[]> {
-		logger.debug('getStats()');
+		// logger.debug('getStats()');
 
 		const response = await this.channel.request(
 			FbsRequest.Method.TRANSPORT_GET_STATS,
