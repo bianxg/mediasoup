@@ -312,7 +312,8 @@ export class Channel extends EnhancedEventEmitter {
 		bodyOffset?: number,
 		handlerId?: string
 	): Promise<Response> {
-		logger.debug(`request() [method:${Method[method]}]`);
+		if (method != Method.TRANSPORT_GET_STATS)
+			logger.debug(`request() [method:${Method[method]}]`);
 
 		if (this.#closed) {
 			throw new InvalidStateError(
@@ -415,7 +416,7 @@ export class Channel extends EnhancedEventEmitter {
 		}
 
 		if (response.accepted()) {
-			logger.debug(`request succeeded [method:${sent.method}, id:${sent.id}]`);
+			// logger.debug(`request succeeded [method:${sent.method}, id:${sent.id}]`);
 
 			sent.resolve(response);
 		} else if (response.error()) {
