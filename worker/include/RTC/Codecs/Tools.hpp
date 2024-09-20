@@ -162,6 +162,7 @@ namespace RTC
 						return true;
 					}
 				}
+				return false;
 			}
 
 			static EncodingContext* GetEncodingContext(

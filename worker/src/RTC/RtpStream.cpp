@@ -131,6 +131,13 @@ namespace RTC
 			this->maxSeq      = seq - 1;
 			this->maxPacketTs = packet->GetTimestamp();
 			this->maxPacketMs = DepLibUV::GetTimeMs();
+
+			MS_WARN_TAG(
+			  rtp,
+			  "start packet [ssrc:%" PRIu32 ", seq:%" PRIu16 ", ts:%" PRIu32 "]",
+			  packet->GetSsrc(),
+			  packet->GetSequenceNumber(),
+			  packet->GetTimestamp());
 		}
 
 		// If not a valid packet ignore it.

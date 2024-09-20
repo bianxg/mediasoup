@@ -1575,9 +1575,10 @@ namespace RTC
 
 			MS_WARN_TAG(
 			  rtp,
-			  "no suitable Producer for received RTP packet [ssrc:%" PRIu32 ", payloadType:%" PRIu8 "]",
+			  "no suitable Producer for received RTP packet [ssrc:%" PRIu32 ", payloadType:%" PRIu8 ", seq:%" PRIu16 "]",
 			  packet->GetSsrc(),
-			  packet->GetPayloadType());
+			  packet->GetPayloadType(),
+			  packet->GetSequenceNumber());
 
 			// Tell the child class to remove this SSRC.
 			RecvStreamClosed(packet->GetSsrc());

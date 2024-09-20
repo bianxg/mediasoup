@@ -914,6 +914,8 @@ namespace RTC
 				// Insert the new RTX ssrc into the map.
 				this->mapRtxSsrcRtpStream[ssrc] = rtpStream;
 
+				MS_DEBUG_2TAGS(rtp, rtx, "RTX packet with [ssrc:%" PRIu32 ", payload:%" PRIu8 "]", ssrc, payloadType);
+
 				return rtpStream;
 			}
 		}
