@@ -36,3 +36,5 @@
 /.cache
 # Packaged module.
 *.tgz
+*.tar.gz
+.vscode
