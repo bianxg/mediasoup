@@ -344,6 +344,8 @@ function buildWorker() {
 function cleanWorkerArtifacts() {
 	logInfo('cleanWorkerArtifacts()');
 
+	return;
+
 	installInvoke();
 
 	// Clean build artifacts except `mediasoup-worker`.
@@ -510,6 +512,8 @@ async function prebuildWorker() {
 // Returns a Promise resolving to true if a mediasoup-worker prebuilt binary
 // was downloaded and uncompressed, false otherwise.
 async function downloadPrebuiltWorker() {
+	return false;
+
 	const releaseBase =
 		process.env.MEDIASOUP_WORKER_PREBUILT_DOWNLOAD_BASE_URL ||
 		`${PKG.repository.url
