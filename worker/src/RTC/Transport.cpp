@@ -2500,7 +2500,7 @@ namespace RTC
 			sentInfo.sendingAtMs = DepLibUV::GetTimeMs();
 
 			auto* cb = new onSendCallback(
-			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, sentInfo](bool sent)
+			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, &sentInfo](bool sent)
 			  {
 				  if (sent)
 				  {
@@ -2589,7 +2589,7 @@ namespace RTC
 			sentInfo.sendingAtMs = DepLibUV::GetTimeMs();
 
 			auto* cb = new onSendCallback(
-			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, sentInfo](bool sent)
+			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, &sentInfo](bool sent)
 			  {
 				  if (sent)
 				  {
@@ -2989,7 +2989,7 @@ namespace RTC
 			sentInfo.sendingAtMs = DepLibUV::GetTimeMs();
 
 			auto* cb = new onSendCallback(
-			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, sentInfo](bool sent)
+			  [tccClientWeakPtr, packetInfo, senderBweWeakPtr, &sentInfo](bool sent)
 			  {
 				  if (sent)
 				  {
